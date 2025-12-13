@@ -1,46 +1,84 @@
 import json
 import os
 import torch
-from transformers import AutoTokenizer
-from peft import AutoPeftModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 # -----------------------------
 # 경로 설정 (LLM 폴더에서 실행 기준)
 # -----------------------------
 BASE_MODEL = "meta-llama/Llama-3.1-8B-Instruct"
-LORA_DIR = "./outputs/lora-llama31-8b"  # finetune_qlora.py에서 저장한 폴더
+# LORA_DIR = "./outputs/lora-llama31-8b"  # FEW-SHOT에서는 사용 안 함
 
 # __file__ 기준으로 안전하게 경로 잡고 싶으면 아래로 교체 가능
 # THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 # LORA_DIR = os.path.abspath(os.path.join(THIS_DIR, "..", "outputs", "lora-llama31-8b"))
 
 
+FEW_SHOT_EXAMPLES = [
+    {
+        "input": {
+            "phase": "CONFIRMED_CONTACT",
+            "sensors": { "flame": 0.9, "co2": 2800, "pm25": 200, "pm10": 250, "gas": 0.8, "pir": True, "vision_person": True },
+            "audio": { "recent_stt": "살려주세요", "has_human_like_speech": True },
+            "survivor": { "is_unconscious": False }
+        },
+        "output": {
+            "phase": "CONFIRMED_CONTACT",
+            "hazard_level": "HIGH",
+            "survivor_state": "CONSCIOUS",
+            "robot_action": "GUIDE_SURVIVOR",
+            "gui_message": "[긴급] 화재 구역 / 의식 있는 생존자",
+            "voice_instruction": "오퍼레이터님, 고위험 화재 구역에서 의식 있는 생존자를 발견했습니다. 대피 유도를 시작하겠습니다.",
+            "survivor_speech": "저는 구조 로봇입니다. 이 구역은 위험하니 즉시 저를 따라 대피해야 합니다. 스스로 이동 가능하십니까?"
+        }
+    },
+    {
+        "input": {
+            "phase": "SEARCHING",
+            "sensors": { "flame": 0.0, "co2": 900, "pm25": 40, "pm10": 60, "gas": 0.2, "pir": False, "vision_person": False },
+            "audio": { "recent_stt": "", "has_human_like_speech": False },
+            "survivor": { "is_unconscious": False }
+        },
+        "output": {
+            "phase": "SEARCHING",
+            "hazard_level": "LOW",
+            "survivor_state": "NONE",
+            "robot_action": "SEARCH",
+            "gui_message": "[정상] 안전 구역 / 수색 지속",
+            "voice_instruction": "오퍼레이터님, 현재 구역은 안전합니다. 수색을 계속 진행하겠습니다.",
+            "survivor_speech": ""
+        }
+    }
+]
+
+
 def make_prompt(sample: dict) -> str:
-    """추론 및 학습 시 사용될 프롬프트 텍스트를 생성"""
-    return f"""너는 재난 구조 로봇의 행동을 결정하는 AI 에이전트이다.
-아래는 현재 로봇의 상태와 센서, 음성, 생존자 정보이다:
+    """추론 및 학습 시 사용될 프롬프트 텍스트를 생성 (Few-shot 버전)"""
 
-{json.dumps(sample, ensure_ascii=False, indent=2)}
+    # 기본 지시사항
+    prompt = """너는 재난 현장에 투입된 구조 로봇을 제어하는, 침착하고 전문적인 AI 에이전트이다.
+너의 임무는 센서 데이터를 분석하고, 로봇의 다음 행동을 결정하며, 인간 구조대 오퍼레이터 및 생존자와 명확하게 소통하는 것이다.
+모든 응답은 간결하고 사실에 기반해야 한다.
 
-위 정보를 바탕으로 로봇의 행동과, 관제(구조대 오퍼레이터)가 취해야 할 대응까지 함께 결정하라.
+주어진 입력 정보(Input)에 대해, 반드시 지정된 7개의 키를 포함하는 JSON 객체(Output)를 생성해야 한다.
+출력 규칙을 반드시 준수하라.
+"""
 
-출력은 반드시 다음 키를 포함하는 단일 JSON 객체여야 한다:
-- "phase": 현재 임무 단계
-- "hazard_level": 계산된 위험도
-- "survivor_state": 생존자 상태
-- "robot_action": 로봇이 수행할 구체적인 행동
-- "gui_message": GUI에 표시될 짧은 요약 텍스트. (voice_instruction과 내용이 달라야 함)
-- "voice_instruction": 오퍼레이터에게 음성으로 보고하는 완전한 문장. (gui_message와 내용이 달라야 함)
-- "survivor_speech": 의식 있는 생존자에게 상태를 파악하기 위한 질문을 던지는 문장. (생존자가 없거나 의식이 없으면 빈 문자열)
+    # Few-shot 예시 추가
+    for example in FEW_SHOT_EXAMPLES:
+        prompt += "\n### 예시 ###\n"
+        prompt += "Input:\n"
+        prompt += f"{json.dumps(example['input'], ensure_ascii=False, indent=2)}\n"
+        prompt += "Output:\n"
+        prompt += f"{json.dumps(example['output'], ensure_ascii=False, indent=2)}\n"
 
-규칙:
-- 출력은 JSON 객체 한 개만 포함해야 한다.
-- JSON 바깥의 설명, 문장, 코드블록, 공백 줄을 절대 넣지 마라.
-- true/false는 따옴표 없이 불리언으로 작성하라.
-- 모든 문자열은 큰따옴표로 감싸야 합니다.
-
-전체 출력은 아래 하나의 JSON 객체만 포함해야 한다.
-""".strip()
+    # 실제 추론할 샘플 추가
+    prompt += "\n### 실제 임무 ###\n"
+    prompt += "Input:\n"
+    prompt += f"{json.dumps(sample, ensure_ascii=False, indent=2)}\n"
+    prompt += "Output:\n"
+    
+    return prompt.strip()
 
 
 def build_example_samples():
@@ -118,14 +156,14 @@ def build_example_samples():
 
 def load_model_and_tokenizer():
     print(">>> 토크나이저 로딩")
-    tokenizer = AutoTokenizer.from_pretrained(LORA_DIR, use_fast=False)
+    tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL, use_fast=False)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
-    print(">>> LoRA 적용 모델 로딩")
-    model = AutoPeftModelForCausalLM.from_pretrained(
-        LORA_DIR,
+    print(">>> 기본 모델 로딩 (Few-shot용)")
+    model = AutoModelForCausalLM.from_pretrained(
+        BASE_MODEL,
         torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
         device_map="auto"
     )
@@ -179,7 +217,7 @@ def run_inference(sample_name: str, model, tokenizer):
     with torch.no_grad():
         output_ids = model.generate(
             **inputs,
-            max_new_tokens=512,
+            max_new_tokens=256,
             do_sample=False,
             temperature=0.1,
             pad_token_id=tokenizer.eos_token_id,
@@ -218,11 +256,8 @@ if __name__ == "__main__":
     # --- 추론 실행 ---
     # 여기에서 어떤 예시를 돌릴지 선택
     # fire_conscious / smoke_unconscious / no_survivor_low 중 하나
-    run_inference("no_survivor_low", model, tokenizer)
-    run_inference("smoke_unconscious", model, tokenizer)
+    # run_inference("no_survivor_low", model, tokenizer)
+    # run_inference("smoke_unconscious", model, tokenizer)
 
     run_inference("fire_conscious", model, tokenizer)
     # 여러 개를 연달아 테스트해도 로딩 없이 빠르게 실행됩니다.
-    print("\n\n" + "="*50)
-    
-    print("\n\n" + "="*50)
