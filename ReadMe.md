@@ -1,87 +1,100 @@
-```
-LLM/
-├── data/                                   # 학습/검증용 JSONL 데이터 저장 폴더
-│   ├── ReadMe.md                           # 데이터 설명 문서
-│   ├── train_merged.jsonl                  # 실제 학습에 사용되는 통합 학습 데이터
-│   ├── train.jsonl                         # 개별 학습 데이터 (임시 원본)
-│   └── valid.jsonl                         # 검증용(optional) 데이터
-│
-├── llama.cpp/                              # LoRA → GGUF 변환용 llama.cpp 소스
-│   ├── convert_lora_to_gguf.py             # HF LoRA를 GGUF LoRA로 변환하는 스크립트
-│   └── ...                                  # (llama.cpp의 기타 파일들)
-│
-├── logs/                                   # 학습 로그 및 결과물 저장
-│
-├── models/                                 # (옵션) 완전한 모델/LoRA 또는 merge 결과 저장
-│
-├── outputs/                                # 파인튜닝 결과물(LoRA 어댑터) 저장 폴더
-│   └── lora-llama31-8b/                    # 학습된 LoRA 디렉토리
-│       ├── adapter_config.json             # LoRA 구성 파일
-│       ├── adapter_model.safetensors       # 학습된 LoRA 가중치
-│       └── tokenizer.*                     # 토크나이저 메타데이터(필요 시)
-│
-├── scripts/                                # 학습/추론/데이터 생성 스크립트 모음
-│   ├── finetune_qlora.py                   # QLoRA 파인튜닝 전체 파이프라인
-│   ├── make_data.py                        # 학습 데이터 생성 스크립트 (예: 100개 Q&A 자동생성)
-│   ├── run_inference.py                    # 학습된 LoRA로 추론 테스트하는 스크립트
-│   └── ...                                  # 기타 유틸 스크립트
-│
-├── venv/                                   # Python 가상환경(로컬 개발용)
-│
-├── .gitignore                              # Git 업로드 제외 설정
-│
-└── requirements.txt                         # pip freeze로 생성된 의존성 목록
-```
-📌 각 폴더/파일의 기능 요약
-📁 data/
+# J-SafeGuard : 자바 기반 재난 탐사 및 통합 관제 시스템
 
-학습(train), 검증(valid)용 JSONL을 넣는 폴더
+> "사람보다 먼저, 위험한 곳으로."
+Spring Boot 서버와 Java Swing 클라이언트를 활용하여 재난 현장을 탐사하고 실시간으로 관제하는 통합 로봇 솔루션입니다.
+> 
 
-LLM 파인튜닝에서 기본적으로 사용되는 데이터 저장 위치
+---
 
-train_merged.jsonl이 최종적으로 모델 학습에 들어가는 파일
+## 1. 기획 배경 및 목표
 
-📁 llama.cpp/
+화재 현장이나 유해 가스가 누출된 밀폐 공간에 구조대원이 직접 진입하는 것은 2차 사고의 위험이 매우 큽니다. 우리는 이 문제를 해결하기 위해 **"먼저 들어가서 보고하는 로봇"**을 기획했습니다.
 
-LoRA → GGUF 변환을 위한 llama.cpp 소스 저장
+웹 브라우저 대신 **자바(Java)** 기반의 PC 전용 관제 프로그램을 도입하여, 인터넷이 불안정한 재난 현장에서도 끊김 없는 통신과 정밀한 제어를 보장하는 것이 핵심 목표입니다.
 
-convert_lora_to_gguf.py를 사용하여
-HuggingFace LoRA → Ollama용 GGUF LoRA 변환 수행
+---
 
-📁 logs/
+## 2. 시스템 아키텍처 (System Architecture)
 
-학습하면서 Trainer가 찍는 로그 파일을 보관
+전체 시스템은 **[사용자 - 서버 - 로봇]**의 3계층 구조로 이루어져 있으며, 모든 데이터는 중앙 서버를 통해 중계되고 저장됩니다.
 
-📁 models/
+- **탐사 로봇 (Edge):** 현장에서 데이터를 수집하고 명령을 수행합니다.
+- **중앙 서버 (Core):** 이기종 간(Java-Python)의 통신을 중계하고 데이터를 DB에 저장합니다.
+- **관제 PC (Client):** 사용자가 로봇을 조종하고 시각화된 데이터를 확인합니다.
 
-(필요 시) 완전한 병합 모델 저장하는 용도
+---
 
-LoRA + 베이스 모델 merge 결과를 넣을 때 사용 가능
+## 3. 핵심 기술 스택 (Tech Stack)
 
-📁 outputs/
+복잡한 설명 없이 핵심만 정리했습니다.
 
-파인튜닝 후 LoRA 어댑터 가중치가 저장되는 핵심 폴더
+- **Server:** `Spring Boot`, `Java 17` (데이터 중계 및 저장)
+- **Database:** `MySQL` (센서 로그 영구 저장)
+- **Client (PC):** `Java Swing`, `AWT` (관제 GUI 및 지도 그리기)
+- **Robot SW:** `Python`, `ROS 2 Humble` (센서 제어 및 SLAM)
+- **Hardware:** `Hanback AI SerBot` (LiDAR, 9축 센서 탑재)
 
-여기 있는 adapter_model.safetensors가 GGUF 변환의 입력으로 사용됨
+---
 
-📁 scripts/
+## 4. 주요 기능 시나리오
 
-프로젝트의 실행 로직이 모두 들어있는 핵심 디렉토리
+### ✅ 안정적인 원격 제어 (Teleoperation)
 
-finetune_qlora.py → 학습 코드
+웹 브라우저의 딜레이를 최소화하기 위해 **TCP 소켓 통신**을 사용합니다. 키보드(WASD)를 누르면 즉각적으로 로봇 모터가 반응하며, 마치 RC카를 운전하듯 정밀한 주행이 가능합니다.
 
-run_inference.py → 추론 테스트 코드
+### ✅ 실시간 2D 지도 시각화 (Mapping)
 
-make_data.py → 학습 데이터 자동 생성
+로봇의 LiDAR 센서가 스캔한 **SLAM 지도 데이터**를 서버가 받아 클라이언트로 전송합니다. Java Swing의 그래픽 도구(`Graphics2D`)를 이용해 0과 1로 된 데이터를 사람이 볼 수 있는 **실내 지도**로 그려냅니다.
 
-📁 venv/
+### ✅ 복합 위험 감지 (Hazard Detection)
 
-Python 가상환경
+로봇이 이동하며 수집한 데이터가 기준치를 넘으면 즉시 알림을 보냅니다.
 
-requirements.txt로 언제든지 재생성 가능
+- **화재:** 불꽃(Flame) 및 고열(Thermopile) 감지 시 **'적색 경보'** 발령.
+- **가스:** 유해 가스(Eco Sensor) 및 미세먼지 농도 위험 수준 도달 시 경고.
+- **생존자:** 카메라가 사람을 인식(YOLO)하면 지도 위에 **위치(좌표)를 마킹**.
 
-requirements.txt
+### ✅ 데이터 블랙박스 (Data Logging)
 
-pip freeze로 뽑은 개발 환경 복원 파일
+로봇이 가동되는 동안의 모든 센서 값과 이동 경로는 **MySQL 데이터베이스**에 1초 단위로 저장됩니다. 사고 발생 후, 언제 어디서 화재가 시작되었는지 역추적할 수 있습니다.
 
-새 PC에서 동일한 환경 구성 가능
+---
+
+## 5. 하드웨어 센서 구성
+
+한백전자 AI SerBot 플랫폼에 재난 탐사에 최적화된 9종의 센서를 통합했습니다.
+
+- **거리/매핑:** LiDAR
+- **안전 감지:** Flame(불꽃), Thermopile(온도), Eco(가스), CO2, Dust(먼지)
+- **보안 감지:** Microwave(레이더), PIR(인체감지)
+- **알림:** Pixel Display(상태 표시 LED)
+
+---
+
+## 6. 팀원 역할 분담 (총 5명)
+
+각자의 전문 분야에 맞춰 효율적으로 역할을 나누었습니다.
+
+### ☕ Server & PM (1명) - 본인
+
+- **프로젝트 총괄:** 일정 관리 및 기술 의사결정.
+- **백엔드 개발:** Spring Boot 소켓 서버 구축 및 DB 설계.
+- **프로토콜 정의:** 로봇과 클라이언트 간 통신 규약(JSON) 설계.
+
+### 🖥️ GUI Client Team (2명)
+
+- **UI/UX:** Java Swing 기반의 직관적인 대시보드 디자인.
+- **기능 구현:** 실시간 지도 렌더링 로직 및 키보드 제어 모듈 개발.
+
+### 🤖 Robot Team (2명)
+
+- **H/W 제어:** 9종 센서 드라이버 개발 및 회로 구성.
+- **S/W 개발:** ROS 2 기반 SLAM 네비게이션 및 YOLO 객체 인식 구현.
+
+---
+
+## 7. 기대 효과
+
+이 프로젝트는 단순한 로봇 제어를 넘어 **[임베디드 - 서버 - 클라이언트]**가 유기적으로 연결된 **엔터프라이즈급 IoT 시스템**을 구축하는 데 의의가 있습니다.
+
+자바(Java)와 스프링(Spring) 생태계를 로봇 산업에 적용함으로써, 더욱 안정적이고 확장 가능한 재난 안전 솔루션을 제시합니다.

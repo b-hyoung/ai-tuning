@@ -13,7 +13,12 @@ import os
 # 설정
 # -----------------------------
 BASE_MODEL = "meta-llama/Llama-3.1-8B-Instruct"
-DATA_PATH = "./data/train.jsonl"   # {"text": "지민이는...\n상추가..."} 형식
+
+# ⚠ 너가 만든 파일 위치에 맞춰라.
+# 위의 데이터 생성 코드에서 robot_agent_train.jsonl을 현재 폴더에 만들었으면:
+# DATA_PATH = "./robot_agent_train.jsonl"
+DATA_PATH = "./data/robot_agent_train_refined.jsonl"
+
 OUTPUT_DIR = "./outputs/lora-llama31-8b"
 
 
@@ -37,7 +42,7 @@ def main():
     # -------------------------
     print(">>> 데이터셋 로딩")
     dataset = load_dataset("json", data_files=DATA_PATH)["train"]
-    # 예: {"text": "지민이는 어떤프로젝트 해?\n상추가 잘자라는 무드등 만들어"}
+    # 지금 구조: {"input": 프롬프트 문자열, "output": 정답 JSON 문자열}
 
     # -------------------------
     # 3. 토크나이징 + labels 부여
@@ -45,21 +50,34 @@ def main():
     print(">>> 토크나이징")
 
     def tokenize(batch):
-        # batch["text"]는 문자열 리스트
+        """
+        batch["input"] : 상황 설명 + 규칙 프롬프트 (문자열 리스트)
+        batch["output"]: 모델이 내야 할 JSON 정답 (문자열 리스트)
+        """
+        full_texts = []
+
+        for inp, out in zip(batch["input"], batch["output"]):
+            # 필요하면 포맷 더 정교하게 바꿔도 됨
+            text = inp + "\n\n" + out
+            full_texts.append(text)
+
         outputs = tokenizer(
-            batch["text"],
+            full_texts,
             truncation=True,
             padding="max_length",
-            max_length=128,   # 이 Q&A는 짧으니까 128이면 충분
+            # 프롬프트 + JSON 둘 다 포함이니까 128은 너무 짧다. 최소 512 이상 권장.
+            max_length=512,
         )
-        # Causal LM 기본: 입력 전체를 그대로 정답으로 학습
+
+        # 여기서는 간단히 전체 시퀀스를 정답으로 사용
         outputs["labels"] = outputs["input_ids"].copy()
+
         return outputs
 
     tokenized = dataset.map(
         tokenize,
         batched=True,
-        remove_columns=dataset.column_names,
+        remove_columns=dataset.column_names,  # input, output 컬럼 제거
     )
 
     # -------------------------
@@ -91,8 +109,8 @@ def main():
         output_dir=OUTPUT_DIR,
         per_device_train_batch_size=1,
         gradient_accumulation_steps=8,
-        num_train_epochs=3,          # 짧은 데이터니까 3epoch 정도는 돌려도 됨
-        learning_rate=1e-4,          # 2e-4보단 조금 낮게
+        num_train_epochs=3,
+        learning_rate=1e-4,
         logging_steps=10,
         save_steps=100,
         save_total_limit=2,
@@ -100,7 +118,7 @@ def main():
         optim="paged_adamw_8bit",
         lr_scheduler_type="cosine",
         warmup_ratio=0.03,
-        # 네 transformers 버전에서는 evaluation_strategy 없음 → 일부러 안 넣음
+        # evaluation_strategy 생략 (네 버전에서 오류 나던 부분 회피)
     )
 
     trainer = Trainer(
