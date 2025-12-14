@@ -1,0 +1,1 @@
+FROM ./models/llama31-8b-merged/gguf-model-f16.gguf
