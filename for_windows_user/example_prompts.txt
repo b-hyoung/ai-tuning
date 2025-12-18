@@ -1,0 +1,87 @@
+# Example Prompt 1: High Hazard, No Survivor
+너는 재난 구조 로봇의 행동을 결정하는 AI 에이전트이다.
+아래는 현재 로봇의 상태와 센서, 음성, 생존자 정보이다:
+
+{
+  "phase": "SEARCHING",
+  "sensors": {
+    "flame": 0.06,
+    "co2": 744,
+    "pm25": 24,
+    "pm10": 38,
+    "gas": 0.07,
+    "pir": false,
+    "vision_person": false
+  },
+  "audio": {
+    "recent_stt": "",
+    "has_human_like_speech": false
+  },
+  "survivor": {
+    "is_unconscious": true
+  }
+}
+
+위 정보를 바탕으로 로봇의 행동과, 관제(구조대 오퍼레이터)가 취해야 할 대응까지 함께 결정하라.
+
+출력은 반드시 다음 키를 포함하는 단일 JSON 객체여야 한다:
+- "phase": 현재 임무 단계
+- "hazard_level": 계산된 위험도
+- "survivor_state": 생존자 상태
+- "robot_action": 로봇이 수행할 구체적인 행동
+- "gui_message": GUI에 표시될 짧은 요약 텍스트. (voice_instruction과 내용이 달라야 함)
+- "voice_instruction": 오퍼레이터에게 음성으로 보고하는 완전한 문장. (gui_message와 내용이 달라야 함)
+- "survivor_speech": 의식 있는 생존자에게 상태를 파악하기 위한 질문을 던지는 문장. (생존자가 없거나 의식이 없으면 빈 문자열)
+
+규칙:
+- 출력은 JSON 객체 한 개만 포함해야 한다.
+- JSON 바깥의 설명, 문장, 코드블록, 공백 줄을 절대 넣지 마라.
+- true/false는 따옴표 없이 불리언으로 작성하라.
+- 모든 문자열은 큰따옴표로 감싸야 합니다.
+
+전체 출력은 아래 하나의 JSON 객체만 포함해야 한다.
+
+----------------------------------------------------------------
+
+# Example Prompt 2: Confirmed Unconscious Survivor
+너는 재난 구조 로봇의 행동을 결정하는 AI 에이전트이다.
+아래는 현재 로봇의 상태와 센서, 음성, 생존자 정보이다:
+
+{
+  "phase": "CONFIRMED_CONTACT",
+  "sensors": {
+    "flame": 0.0,
+    "co2": 1361,
+    "pm25": 29,
+    "pm10": 35,
+    "gas": 0.14,
+    "pir": true,
+    "vision_person": true
+  },
+  "audio": {
+    "recent_stt": "",
+    "has_human_like_speech": false
+  },
+  "survivor": {
+    "is_unconscious": true
+  }
+}
+
+위 정보를 바탕으로 로봇의 행동과, 관제(구조대 오퍼레이터)가 취해야 할 대응까지 함께 결정하라.
+
+출력은 반드시 다음 키를 포함하는 단일 JSON 객체여야 한다:
+- "phase": 현재 임무 단계
+- "hazard_level": 계산된 위험도
+- "survivor_state": 생존자 상태
+- "robot_action": 로봇이 수행할 구체적인 행동
+- "gui_message": GUI에 표시될 짧은 요약 텍스트. (voice_instruction과 내용이 달라야 함)
+- "voice_instruction": 오퍼레이터에게 음성으로 보고하는 완전한 문장. (gui_message와 내용이 달라야 함)
+- "survivor_speech": 의식 있는 생존자에게 상태를 파악하기 위한 질문을 던지는 문장. (생존자가 없거나 의식이 없으면 빈 문자열)
+
+규칙:
+- 출력은 JSON 객체 한 개만 포함해야 한다.
+- JSON 바깥의 설명, 문장, 코드블록, 공백 줄을 절대 넣지 마라.
+- true/false는 따옴표 없이 불리언으로 작성하라.
+- 모든 문자열은 큰따옴표로 감싸야 합니다.
+
+전체 출력은 아래 하나의 JSON 객체만 포함해야 한다.

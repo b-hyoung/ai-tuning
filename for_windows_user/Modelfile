@@ -1,0 +1,2 @@
+FROM ../models/llama-3.1-8b-instruct.Q4_K_M.gguf
+ADAPTER ./lora-llama31-8B-F32-LoRA.gguf
